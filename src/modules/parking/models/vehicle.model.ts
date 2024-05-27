@@ -6,7 +6,6 @@ export class Vehicle {
   entryTime: Date | null;
   lastExitTime: Date | null;
   slot: ParkingSlot | null;
-  lastParkingSlotId: number | null;
 
   constructor(vehicleId: string, size: number) {
     this.vehicleId = vehicleId;
@@ -14,6 +13,5 @@ export class Vehicle {
     this.entryTime = null;
     this.lastExitTime = null;
     this.slot = null;
-    this.lastParkingSlotId = null;
   }
 }

@@ -72,28 +72,33 @@ export class ParkingLotService {
 
       const IS_WITHIN_3HRS = CURRENT_TIME <= adjustedTime3hrEntryTime;
 
-      if (IS_WITHIN_3HRS && RETURN_IS_BETWEEN_AN_HOUR) {
-        // Return the previous slot id
-        // If vehicle return in within an hour but his slot are taken
-        let returnOrFindNewSlot =
-          this.slots.find(
-            (slot) =>
-              slot.slotId === vehicle.lastParkingSlotId && !slot.isOccupied
-          ) || this.findNearestSlot(vehicleSize, entryPoint);
-
-        vehicle.slot = returnOrFindNewSlot;
-        return vehicle.slot!.slotId >= 0 ? vehicle.slot!.slotId : null;
-      } else {
-        // Update entry time for new parking session
+      if (!(IS_WITHIN_3HRS && RETURN_IS_BETWEEN_AN_HOUR)) {
+        // New charge
+        // New Entry Time
         vehicle.entryTime = CURRENT_TIME;
         this.vehicles[vehicleId] = vehicle;
       }
-    } else {
-      vehicle = new Vehicle(vehicleId, vehicleSize);
-      vehicle.entryTime = CURRENT_TIME;
-      vehicle.lastExitTime = null;
-      this.vehicles[vehicleId] = vehicle;
+
+      // Return to previews parking slot else find new near
+      let returnPrevSlotOrFindNewSlot =
+        this.slots.find(
+          (slot) => slot.lastVehicleId === vehicle.vehicleId && !slot.isOccupied
+        ) || this.findNearestSlot(vehicleSize, entryPoint);
+      vehicle.slot = returnPrevSlotOrFindNewSlot;
+
+      // Update parking slot state
+      const returnPrevSlotOrFindNewSlotIndex = this.slots.findIndex(
+        (slot) => slot.slotId === returnPrevSlotOrFindNewSlot?.slotId
+      );
+      this.slots[returnPrevSlotOrFindNewSlotIndex].isOccupied = true;
+
+      // return slotId
+      return vehicle.slot!.slotId >= 0 ? vehicle.slot!.slotId : null;
     }
+
+    vehicle = new Vehicle(vehicleId, vehicleSize);
+    vehicle.entryTime = CURRENT_TIME;
+    this.vehicles[vehicleId] = vehicle;
 
     const slot = this.findNearestSlot(vehicleSize, entryPoint);
     if (!slot) return null;
@@ -107,7 +112,6 @@ export class ParkingLotService {
   // Calculate additional park fee if vehicle exceed 3 hours
   unparkVehicle(vehicleId: string, fakeLastExitTime?: Date): number | null {
     let vehicle = this.vehicles[vehicleId];
-    console.log("vehicle", vehicle);
     if (!vehicle || !vehicle.slot) {
       return null;
     }
@@ -117,8 +121,10 @@ export class ParkingLotService {
     );
     this.slots[lastParkingSlotIndex].isOccupied = false;
 
+    // Save last vehicle parked
+    this.slots[lastParkingSlotIndex].lastVehicleId = vehicle.vehicleId;
+
     vehicle.lastExitTime = new Date();
-    vehicle.lastParkingSlotId = vehicle.slot.slotId;
     vehicle.slot = null;
 
     const totalFees = this.calculateFees(vehicleId, fakeLastExitTime);
